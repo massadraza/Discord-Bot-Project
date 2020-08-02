@@ -1,6 +1,10 @@
 import discord 
+import time 
+import asyncio 
+
 
 # id = 738868269343309829
+messages = joined = 0 
 
 def read_token():
     with open("token.txt", "r") as f:
@@ -11,16 +15,68 @@ token = read_token()
 
 client = discord.Client()
 
+
+async def update_data(): 
+    await client.wait_until_ready()
+    global messages, joined
+
+    while not client.is_closed():  
+        try:
+            with open("data.txt", "a") as f:
+                f.write(f"Time: {int(time.time())}, Messages: {messages}, Members Joined: {joined}\n")   
+
+            messages = 0 
+            joined = 0
+
+            await asyncio.sleep(5)  
+        except Exception as e:
+            print(e)
+            await asyncio.sleep(5)  
+
+@client.event
+async def on_member_update(before, after): 
+    n = after.nick
+    if n:
+        if n.lower().count("official_mrbox") > 0: 
+            last = before.nick 
+            if last:
+                await after.edit(nick=last)
+            else:
+                await after.edit(nick="Nickname already in use") 
+
+
+
+
+ 
+@client.event
+async def on_member_join(member): 
+    global joined
+    joined += 1
+    for channel in member.guild.channels:
+        if str(channel) == "welcomes":
+            await channel.send(f"""Hey there, {member.mention}. Welcome to the Python Bot Test Server""")  
+
+
+
+
 @client.event
 async def on_message(message):
+    global messages 
+    messages += 1
+
     id = client.get_guild(738868269343309829) 
+    channels = ["commands"] 
+    valid_users = ["official_mrbox#0177"]  
 
-    if message.content.find("!hello") != -1:
-        await message.channel.send("Hi") 
-    elif message.content == "!members":
-        await message.channel.send(f"""# of Members: {id.member_count}""") 
+    if str(message.channel) in channels and str(message.author) in valid_users:  
+        if message.content.find("!hello") != -1:
+            await message.channel.send("Hi") 
+        elif message.content == "!members":
+            await message.channel.send(f"""# of Members: {id.member_count}""") 
+    else:
+        print(f"""User: {message.author} tried to do command {message.content}, in channel {message.channel}""") 
 
 
-
+client.loop.create_task(update_data()) 
 client.run(token)  
 
